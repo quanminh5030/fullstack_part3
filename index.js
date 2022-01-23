@@ -50,8 +50,8 @@ app.post('/api/persons', (req, res, next) => {
   });
 
   Person.find({ name: name })
-    .then(persons => {
-      if (persons) {
+    .then(person => {
+      if (person.length > 0) {
         res.status(400).json({ error: `Person ${name} is already added in the phonebook. You might want update?` })
       } else {
         personObj.save()
