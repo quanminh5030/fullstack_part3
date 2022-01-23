@@ -41,19 +41,26 @@ app.delete('/api/persons/:id', (req, res, next) => {
     .catch(err => next(err))
 })
 
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
   const { name, number } = req.body;
 
-  if (!name || !number) {
-    res.status(400).json({ error: 'Name or number is missing' })
-  } else {
-    const personObj = new Person({
-      name: name,
-      number: number
-    });
+  const personObj = new Person({
+    name: name,
+    number: number
+  });
 
-    personObj.save().then(savedPerson => res.json(savedPerson));
-  }
+  Person.find({ name: name })
+    .then(persons => {
+      if (persons) {
+        res.status(400).json({ error: `Person ${name} is already added in the phonebook. You might want update?` })
+      } else {
+        personObj.save()
+          .then(savedPerson => savedPerson.toJSON())
+          .then(savedAndFormattedPerson => res.json(savedAndFormattedPerson))
+          .catch(err => next(err))
+      }
+    })
+    .catch(err => next(err));
 })
 
 app.put('/api/persons/:id', (req, res, next) => {
@@ -64,7 +71,7 @@ app.put('/api/persons/:id', (req, res, next) => {
     number: body.number
   }
 
-  Person.findByIdAndUpdate(req.params.id, person, { new: true })
+  Person.findByIdAndUpdate(req.params.id, person, { new: true, runValidators: true })
     .then(updatedPerson => res.json(updatedPerson))
     .catch(err => next(err))
 })
@@ -77,10 +84,11 @@ const unknownEndpoint = (request, response) => {
 app.use(unknownEndpoint);
 
 const errorHandler = (error, request, response, next) => {
-  console.error(error.message)
 
   if (error.name === 'CastError') {
     return response.status(400).send({ error: 'malformatted id' })
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
   }
   next(error)
 }
